@@ -525,10 +525,10 @@ with tab7:
                     footer_texts = [
                         ["1. Handkerchiefs Goods 6213", "For ABDULLAH"],
                         ["2. Packing of Handkerchiefs Not for sale", ""],
-                        ["3. Good Against party DC and Date ________________________", ""],
-                        ["4. SAC Code: 9988 ________________________", ""],
-                        ["5. GST will be paid by Principle ________________________", ""],
-                        ["Below 20 Lacs Unregistered Manufacturer ________________________", ""]
+                        ["3. Good Against party DC and Date                              ________________________", ""],
+                        ["4. SAC Code: 9988                                              ________________________", ""],
+                        ["5. GST will be paid by Principle                               ________________________", ""],
+                        ["Below 20 Lacs Unregistered Manufacturer                        ________________________", ""]
                     ]
 
                     grand_total = df["Amount"].sum()
