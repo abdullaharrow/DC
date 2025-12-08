@@ -126,8 +126,8 @@ with tab2:
         else:
             # Display created_at date
             if created_at:
-                created_at_date = datetime.fromisoformat(created_at).date()
-                st.info(f"📅 Created at: {created_at_date.strftime('%d-%m-%Y')}")
+                created_at_dt = datetime.fromisoformat(created_at)
+                st.info(f"📅 Created at: {created_at_dt.strftime('%d-%m-%Y %H:%M:%S')}")
             
             df = pd.DataFrame(dc_data)
 
