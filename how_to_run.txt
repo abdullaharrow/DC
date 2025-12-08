@@ -1,0 +1,16 @@
+One Time Action:
+
+`pip install -r requirements.txt`
+
+Run this in the command prompt in the root folder(DC_MANAGEMENT) to install the dependency.
+
+
+How to Start The App Each Time:
+
+Run the following command in the terminal of the root folder(DC_MANAGEMENT).
+
+`streamlit run app.py`
+
+Additional Note
+
+Update the config as needed (add new items, modify existing items or delete items)
