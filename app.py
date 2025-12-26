@@ -422,7 +422,7 @@ with tab7:
                 df.insert(0, "Sl.no", range(1, len(df) + 1))
 
                 # Compute Packing Mode, Dozens, Rate, Amount
-                df["Packing Mode"] = df["item"].apply(lambda x: packing_mode.get(x, 0))
+                df["Pack Mode"] = df["item"].apply(lambda x: packing_mode.get(x, 0))
                 df["Dozens"] = df.apply(lambda row: round((row["boxes"] * packing_mode.get(row["item"], 0)) / 12, 2), axis=1)
                 df["Rate"] = df["item"].apply(lambda x: amount_per_dozen.get(x, 0))
                 df["Amount"] = (df["Dozens"] * df["Rate"]).round(0).astype(int)
@@ -444,7 +444,7 @@ with tab7:
                     "item": "Particular"
                 }, inplace=True)
 
-                print_cols = ["Sl.no", "DC No", "Date", "Packing Mode", "Units", "Particular", "Dozens", "Rate", "Amount"]
+                print_cols = ["Sl.no", "DC No", "Date", "Pack Mode", "Units", "Particular", "Dozens", "Rate", "Amount"]
 
                 # --- ReportLab and PDF setup ---
                 from io import BytesIO
@@ -535,7 +535,7 @@ with tab7:
                     chunks = [all_rows[i:i + chunk_size] for i in range(0, len(all_rows), chunk_size)]
 
                     # column widths
-                    col_widths = [30, 40, 65, 75, 30, 145, 40, 30, 40]
+                    col_widths = [30, 40, 65, 60, 34, 150, 42, 32, 42]
                     # ✅ PERFECT-ALIGN FOOTER WITH RIGHT-SIDE PRINT
                     footer_texts = [
                         ["1. Handkerchiefs Goods 6213", "For SHAHANAZ BANU"],
