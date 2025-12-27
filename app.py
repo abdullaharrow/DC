@@ -15,7 +15,10 @@ from db import (
     get_invoice_delivery_details,
     create_invoice,
     get_uncompleted_dcs,
-    get_all_invoices
+    get_all_invoices,
+    delete_dc_delivery_entry,
+    delete_dc_row,
+    delete_dc_entry
 )
 import pandas as pd
 from datetime import datetime, date
@@ -204,6 +207,11 @@ with tab3:
 
     if st.button("🔍 Load DC Details"):
         st.session_state.update_dc = update_dc
+        
+    if st.button("🗑️ Delete DC"):
+        delete_dc_entry(update_dc)
+        st.session_state.update_dc = None
+        st.success(f"✅ DC Deleted Successfully")
 
     if "update_dc" in st.session_state and st.session_state.update_dc:
         update_dc = st.session_state.update_dc
@@ -236,6 +244,14 @@ with tab3:
                     try:
                         update_dc_row(update_dc, selected_item, new_dozen, new_boxes)
                         st.success(f"✅ Master row for '{selected_item}' updated successfully.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to update dc_rows: {e}")
+                
+                if st.button("🗑️ Delete Selected Item From DC"):
+                    try:
+                        delete_dc_row(update_dc, selected_item)
+                        st.success(f"✅ Deleted the selected item '{selected_item}'")
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Failed to update dc_rows: {e}")
@@ -283,6 +299,14 @@ with tab3:
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Failed to update delivery entry: {e}")
+                
+                if st.button("🗑️ Delete Delivery Record"):
+                    try:
+                        delete_dc_delivery_entry(update_dc, old_date_obj, selected_item_name)
+                        st.success("✅ Delivery history updated successfully.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to delete delivery entry: {e}")
             else:
                 st.info("No delivery records found for this DC.")
 # ============== TAB 4: Create Invoice Details ==============
@@ -481,15 +505,15 @@ with tab7:
                     y_top = height - margin
                     canvas.setFont(base_font, 12)
                     canvas.drawString(margin + 2, y_top, "PAN No: DJOPB0004F")
-                    canvas.drawRightString(width - margin - 2, y_top, "Mob: 8754789900")
+                    canvas.drawRightString(width - margin - 2, y_top, "Mob: 8825766745")
 
                     canvas.setFont(base_font, 14)
                     canvas.drawCentredString(width / 2.0, y_top - 20, "JOB INVOICE")
 
                     canvas.setFont(base_font, 12)
-                    canvas.drawCentredString(width / 2.0, y_top - 40, "ABDULLAH S K")
+                    canvas.drawCentredString(width / 2.0, y_top - 40, "SHAHANAZ BANU")
                     canvas.drawCentredString(width / 2.0, y_top - 55,
-                                             "No : 464/18, Kattabomman Street, Vyasarpadi, Chennai - 600039")
+                                             "No : 39/16/2, Nayar Vardha Pillai Street, Roypettah, Chennai- 600014")
 
                     # Bill No & Date in bold
                     bill_date_y = y_top - 75
@@ -538,7 +562,7 @@ with tab7:
                     col_widths = [30, 40, 65, 60, 34, 150, 42, 32, 42]
                     # ✅ PERFECT-ALIGN FOOTER WITH RIGHT-SIDE PRINT
                     footer_texts = [
-                        ["1. Handkerchiefs Goods 6213", "For ABDULLAH"],
+                        ["1. Handkerchiefs Goods 6213", "For SHAHANAZ BANU"],
                         ["2. Packing of Handkerchiefs Not for sale", ""],
                         ["3. Good Against party DC and Date                    ________________________", ""],
                         ["4. SAC Code: 9988                                              ________________________", ""],

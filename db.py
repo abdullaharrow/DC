@@ -81,6 +81,25 @@ def fetch_dc_entry(dc_entry_number):
     dc_data = [{"Item": item, "Dozen": dozen, "Boxes": boxes} for item, dozen, boxes in rows]
     return dc_data, created_at
 
+def delete_dc_entry(dc_entry_number):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+	
+    c.execute("""DELETE FROM dc_entries where dc_entry_number = ?""",
+              (dc_entry_number,))
+
+    c.execute("""
+        DELETE FROM dc_rows 
+        WHERE dc_entry_number = ?
+    """, (dc_entry_number,))
+
+    c.execute("""
+        DELETE FROM dc_delivery_details
+        WHERE dc_entry_number = ?
+    """, (dc_entry_number,))
+
+    conn.commit()
+    conn.close()
 
 def update_dc_row(dc_entry_number, item, new_dozen, new_boxes):
     conn = sqlite3.connect(DB_FILE)
@@ -93,6 +112,21 @@ def update_dc_row(dc_entry_number, item, new_dozen, new_boxes):
     conn.commit()
     conn.close()
 
+def delete_dc_row(dc_entry_number, item):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("""
+        DELETE FROM dc_rows 
+        WHERE dc_entry_number = ? AND item = ?
+    """, (dc_entry_number, item))
+
+    c.execute("""
+        DELETE FROM dc_delivery_details 
+        WHERE dc_entry_number = ? AND item = ?
+    """, (dc_entry_number, item))
+
+    conn.commit()
+    conn.close()
 
 # ----------------- Delivery Operations -----------------
 def add_dc_delivery_details(dc_entry_number, date, item, boxes):
@@ -195,6 +229,17 @@ def update_dc_delivery_entry(dc_entry_number, old_date, item, new_boxes, new_dat
     conn.commit()
     conn.close()
 
+def delete_dc_delivery_entry(dc_entry_number, old_date, item):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("""
+        DELETE FROM dc_delivery_details
+        WHERE dc_entry_number = ?
+        AND item = ?
+        AND date = ?
+    """, (dc_entry_number, item, old_date.isoformat()))
+    conn.commit()
+    conn.close()
 
 # ----------------- Invoice Operations -----------------
 def create_invoice(invoice_number, from_date, to_date):
