@@ -628,73 +628,156 @@ with tab7:
                     )
 # ================= TAB 8: STATISTICS =================
 # ================= TAB 8: STATISTICS =================
+# ================= TAB 8: STATISTICS =================
 with tab8:
     st.title("📊 Statistics")
 
-    # Date range selector
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("📅 From Date", value=date.today().replace(day=1), key="stats_from_date")
-    with col2:
-        end_date = st.date_input("📅 To Date", value=date.today(), key="stats_to_date")
+    # ---------- KPI STYLES ----------
+    st.markdown("""
+    <style>
+    .kpi-card {
+        padding: 18px;
+        border-radius: 18px;
+        text-align: center;
+        box-shadow: 0 8px 22px rgba(0,0,0,0.15);
+        transition: all 0.3s ease-in-out;
+        color: white;
+    }
+    .kpi-card:hover {
+        transform: translateY(-6px) scale(1.04);
+        box-shadow: 0 16px 36px rgba(0,0,0,0.25);
+    }
+    .kpi-title {
+        font-size: 14px;
+        font-weight: 600;
+        opacity: 0.95;
+    }
+    .kpi-value {
+        font-size: 30px;
+        font-weight: 800;
+        margin-top: 6px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # ---------- DATE FILTER ----------
+    c1, c2 = st.columns(2)
+    with c1:
+        start_date = st.date_input(
+            "📅 From Date",
+            value=date.today().replace(day=1),
+            key="tab8_from_date"
+        )
+    with c2:
+        end_date = st.date_input(
+            "📅 To Date",
+            value=date.today(),
+            key="tab8_to_date"
+        )
 
     if start_date > end_date:
         st.error("❌ 'From Date' cannot be after 'To Date'")
     else:
         try:
-            # Fetch all deliveries in range
             df = get_dc_delivery_details_with_date_filter(start_date, end_date)
 
             if df.empty:
                 st.warning("⚠️ No records found for the selected date range.")
             else:
-                # --- Compute metrics ---
+                # ---------- CALCULATIONS ----------
                 df["Packing Mode"] = df["item"].apply(lambda x: packing_mode.get(x, 0))
-                df["Dozens"] = df.apply(lambda row: (row["boxes"] * row["Packing Mode"]) / 12, axis=1)
+                df["Dozens"] = (df["boxes"] * df["Packing Mode"]) / 12
+                df["Amount"] = df.apply(
+                    lambda r: r["Dozens"] * amount_per_dozen.get(r["item"], 0), axis=1
+                )
 
-                # Amount calculation
-                def compute_amount(row):
-                    rate = amount_per_dozen.get(row["item"], 0)
-                    return row["Dozens"] * rate
-
-                df["Amount"] = df.apply(compute_amount, axis=1)
-
-                # --- Summary metrics ---
+                total_boxes = df["boxes"].sum()
                 total_dozens = df["Dozens"].sum()
                 total_amount = df["Amount"].sum()
 
-                # --- DC completion stats ---
-                pending_dc_df = get_uncompleted_dcs()
-                completed_dcs = len(set(df["dc_entry_number"])) - len(pending_dc_df["dc_entry_number"].unique()) if not pending_dc_df.empty else len(set(df["dc_entry_number"]))
-                pending_dcs = len(pending_dc_df["dc_entry_number"].unique()) if not pending_dc_df.empty else 0
+                pending_df = get_uncompleted_dcs()
+                pending_dcs = len(pending_df["dc_entry_number"].unique()) if not pending_df.empty else 0
+                completed_dcs = len(df["dc_entry_number"].unique()) - pending_dcs
 
-                # --- Show summary metrics ---
+                # ---------- KPI COLOR LOGIC ----------
+                def grad_green():
+                    return "linear-gradient(135deg,#16a34a,#22c55e)"
+
+                def grad_orange():
+                    return "linear-gradient(135deg,#f59e0b,#fbbf24)"
+
+                def grad_red():
+                    return "linear-gradient(135deg,#dc2626,#ef4444)"
+
+                def box_color(v):
+                    return grad_green() if v >= 1000 else grad_orange() if v >= 500 else grad_red()
+
+                def amount_color(v):
+                    return grad_green() if v >= 100000 else grad_orange() if v >= 50000 else grad_red()
+
+                def pending_color(v):
+                    return grad_green() if v == 0 else grad_orange() if v <= 3 else grad_red()
+
+                # ---------- KPI DISPLAY ----------
                 st.markdown("### 📈 Summary Overview")
-                kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-                kpi1.metric("📦 Total Dozens", f"{total_dozens:,.2f}")
-                kpi2.metric("💰 Total Amount Earned", f"₹{total_amount:,.2f}")
-                kpi3.metric("✅ Completed DCs", f"{completed_dcs}")
-                kpi4.metric("⏳ Pending DCs", f"{pending_dcs}")
+
+                k1, k2, k3, k4, k5 = st.columns(5)
+
+                k1.markdown(f"""
+                <div class="kpi-card" style="background:{box_color(total_boxes)};">
+                    <div class="kpi-title">📦 Total Boxes</div>
+                    <div class="kpi-value">{total_boxes:,.0f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                k2.markdown(f"""
+                <div class="kpi-card" style="background:linear-gradient(135deg,#2563eb,#3b82f6);">
+                    <div class="kpi-title">🧺 Total Dozens</div>
+                    <div class="kpi-value">{total_dozens:,.2f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                k3.markdown(f"""
+                <div class="kpi-card" style="background:{amount_color(total_amount)};">
+                    <div class="kpi-title">💰 Total Amount</div>
+                    <div class="kpi-value">₹{total_amount:,.2f}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                k4.markdown(f"""
+                <div class="kpi-card" style="background:{grad_green()};">
+                    <div class="kpi-title">✅ Completed DCs</div>
+                    <div class="kpi-value">{completed_dcs}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                k5.markdown(f"""
+                <div class="kpi-card" style="background:{pending_color(pending_dcs)};">
+                    <div class="kpi-title">⏳ Pending DCs</div>
+                    <div class="kpi-value">{pending_dcs}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
                 st.markdown("---")
 
-                # --- Detailed data table ---
+                # ---------- DETAILED TABLE ----------
                 st.markdown("### 📊 Detailed Delivery Data")
                 df_display = df[["date", "dc_entry_number", "item", "boxes", "Packing Mode", "Dozens", "Amount"]]
                 df_display.rename(columns={
                     "date": "Date",
                     "dc_entry_number": "DC Number",
                     "item": "Item",
-                    "boxes": "Boxes",
+                    "boxes": "Boxes"
                 }, inplace=True)
 
-                df_display = df_display.sort_values(by="Date", ascending=True).reset_index(drop=True)
+                df_display.sort_values(by="Date", inplace=True)
                 df_display.insert(0, "Sl.No", range(1, len(df_display) + 1))
+
                 st.dataframe(df_display, use_container_width=True, hide_index=True)
 
                 st.markdown("---")
 
-                # --- New Section: Cumulative Summary by Item ---
+                # ---------- ITEM SUMMARY ----------
                 st.markdown("### 🧮 Cumulative Summary by Item")
                 item_summary = df.groupby("item", as_index=False).agg({
                     "Dozens": "sum",
@@ -709,7 +792,6 @@ with tab8:
 
                 item_summary.insert(0, "Sl.No", range(1, len(item_summary) + 1))
 
-                # Format values neatly
                 st.dataframe(
                     item_summary.style.format({
                         "Total Dozens": "{:,.2f}",
