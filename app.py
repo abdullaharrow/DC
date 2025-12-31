@@ -200,120 +200,175 @@ with tab2:
                     st.info("No delivery entries found for this DC.")       
 
 # ============== TAB 3: UPDATE DC DETAILS ==============
+# ============== TAB 3: UPDATE DC DETAILS ==============
 with tab3:
     st.title("✏️ Update DC Details")
 
     update_dc = st.text_input("Enter DC_Entry_Number to update")
 
-    if st.button("🔍 Load DC Details"):
-        st.session_state.update_dc = update_dc
-        
-    if st.button("🗑️ Delete DC"):
-        if update_dc is not "":
+    col_load, col_delete = st.columns([4, 1])
+
+    with col_load:
+        if st.button("🔍 Load DC Details"):
+            st.session_state.update_dc = update_dc
+
+    with col_delete:
+        if st.button("🗑️ Delete DC"):
+            if update_dc != "":
+                st.session_state.confirm_delete_dc = True
+
+    # ---------- CONFIRM DELETE DC ----------
+    if st.session_state.get("confirm_delete_dc"):
+        st.warning("⚠️ Are you sure you want to DELETE this DC? This action cannot be undone.")
+        confirm = st.checkbox("Yes, delete this DC permanently")
+
+        if confirm:
             dc_row_data, created_at = fetch_dc_entry(update_dc)
             if dc_row_data:
                 delete_dc_entry(update_dc)
                 st.session_state.update_dc = None
-                st.success(f"✅ DC Deleted Successfully")
+                st.session_state.confirm_delete_dc = False
+                st.success("✅ DC Deleted Successfully")
+                st.rerun()
             else:
                 st.warning("❌ No DC found with that number.")
 
+    # ---------- LOAD DC ----------
     if "update_dc" in st.session_state and st.session_state.update_dc:
         update_dc = st.session_state.update_dc
-        
-        # FIX: Unpack the tuple correctly (dc_row_data, created_at)
+
         dc_row_data, created_at = fetch_dc_entry(update_dc)
-        
+
         if dc_row_data:
             with st.expander("🗃 Update Master Row (Planned Quantities)", expanded=True):
                 row_df = pd.DataFrame(dc_row_data)
                 st.write("Current Planned Totals:")
                 st.dataframe(row_df, use_container_width=True, hide_index=True)
 
-                # Select item to update
                 filtered_items = [row["Item"] for row in dc_row_data]
                 selected_item = st.selectbox("Select Item to Update in DC Rows", filtered_items)
 
-                # Get existing data for the selected item
                 selected_row = next(row for row in dc_row_data if row["Item"] == selected_item)
 
                 col1, col2 = st.columns(2)
                 with col1:
-                    new_dozen = st.number_input("New Dozen", min_value=0, step=1, value=int(selected_row["Dozen"]))
+                    new_dozen = st.number_input(
+                        "New Dozen", min_value=0, step=1, value=int(selected_row["Dozen"])
+                    )
                 with col2:
-                    # Auto-compute boxes based on dozens
                     new_boxes = compute_boxes(selected_item, new_dozen)
                     st.number_input("New calculated boxes", value=new_boxes, disabled=True)
 
-                if st.button("💾 Update Planned Quantity"):
-                    try:
-                        update_dc_row(update_dc, selected_item, new_dozen, new_boxes)
-                        st.success(f"✅ Master row for '{selected_item}' updated successfully.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Failed to update dc_rows: {e}")
-                
-                if st.button("🗑️ Delete Selected Item From DC"):
-                    try:
-                        delete_dc_row(update_dc, selected_item)
-                        st.success(f"✅ Deleted the selected item '{selected_item}'")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Failed to update dc_rows: {e}")
+                col_upd, col_del = st.columns([4, 1])
+
+                with col_upd:
+                    if st.button("💾 Update Planned Quantity"):
+                        try:
+                            update_dc_row(update_dc, selected_item, new_dozen, new_boxes)
+                            st.success(f"✅ Master row for '{selected_item}' updated successfully.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Failed to update dc_rows: {e}")
+
+                with col_del:
+                    if st.button("🗑️ Delete Selected Item From DC"):
+                        st.session_state.confirm_delete_item = True
+
+                # ---------- CONFIRM DELETE ITEM ----------
+                if st.session_state.get("confirm_delete_item"):
+                    st.warning(f"⚠️ Confirm deletion of item **{selected_item}** from this DC?")
+                    confirm_item = st.checkbox("Yes, delete this item")
+
+                    if confirm_item:
+                        try:
+                            delete_dc_row(update_dc, selected_item)
+                            st.session_state.confirm_delete_item = False
+                            st.success(f"✅ Deleted item '{selected_item}'")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Failed to delete dc_row: {e}")
+
         else:
             st.warning("❌ No DC found with that number.")
 
         st.markdown("---")
 
+        # ========== DELIVERY HISTORY ==========
         with st.expander("🚚 Update Specific Delivery Entry (Delivery History)"):
             delivery_df = get_dc_delivery_details(update_dc)
 
             if not delivery_df.empty:
-                st.write("Select a delivery record to modify:")
                 st.dataframe(delivery_df, use_container_width=True, hide_index=True)
 
-                # Create a unique list of identifiers for selectbox
-                # We combine Date and Item to help the user pick the right row
-                delivery_df['selection_label'] = delivery_df['date'] + " | " + delivery_df['Item_Name']
-                selected_label = st.selectbox("Select Delivery Record", delivery_df['selection_label'])
+                delivery_df["selection_label"] = (
+                    delivery_df["date"] + " | " + delivery_df["Item_Name"]
+                )
+                selected_label = st.selectbox(
+                    "Select Delivery Record", delivery_df["selection_label"]
+                )
 
-                # Filter data for the selected record
-                target_row = delivery_df[delivery_df['selection_label'] == selected_label].iloc[0]
-                
+                target_row = delivery_df[
+                    delivery_df["selection_label"] == selected_label
+                ].iloc[0]
+
                 old_date_str = target_row["date"]
                 selected_item_name = target_row["Item_Name"]
                 old_box_val = float(target_row["Delivered_Boxes"])
-                
-                # Convert string date back to date object for the input
                 old_date_obj = datetime.strptime(old_date_str, "%Y-%m-%d").date()
 
                 col1, col2 = st.columns(2)
                 with col1:
-                    new_box_val = st.number_input("Update Boxes Delivered", min_value=0.0, step=1.0, value=old_box_val)
+                    new_box_val = st.number_input(
+                        "Update Boxes Delivered", min_value=0.0, step=1.0, value=old_box_val
+                    )
                 with col2:
                     change_date = st.checkbox("Change Delivery Date?")
                     new_date = None
                     if change_date:
                         new_date = st.date_input("New Delivery Date", value=old_date_obj)
 
-                if st.button("💾 Update Delivery Record"):
-                    try:
-                        # Call db function
-                        update_dc_delivery_entry(update_dc, old_date_obj, selected_item_name, new_box_val, new_date)
-                        st.success("✅ Delivery history updated successfully.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Failed to update delivery entry: {e}")
-                
-                if st.button("🗑️ Delete Delivery Record"):
-                    try:
-                        delete_dc_delivery_entry(update_dc, old_date_obj, selected_item_name)
-                        st.success("✅ Delivery history updated successfully.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Failed to delete delivery entry: {e}")
+                col_upd, col_del = st.columns([4, 1])
+
+                with col_upd:
+                    if st.button("💾 Update Delivery Record"):
+                        try:
+                            update_dc_delivery_entry(
+                                update_dc,
+                                old_date_obj,
+                                selected_item_name,
+                                new_box_val,
+                                new_date,
+                            )
+                            st.success("✅ Delivery history updated successfully.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Failed to update delivery entry: {e}")
+
+                with col_del:
+                    if st.button("🗑️ Delete Delivery Record"):
+                        st.session_state.confirm_delete_delivery = True
+
+                # ---------- CONFIRM DELETE DELIVERY ----------
+                if st.session_state.get("confirm_delete_delivery"):
+                    st.warning(
+                        f"⚠️ Confirm deletion of delivery record:\n\n"
+                        f"**{selected_item_name} | {old_date_str}**"
+                    )
+                    confirm_delivery = st.checkbox("Yes, delete this delivery record")
+
+                    if confirm_delivery:
+                        try:
+                            delete_dc_delivery_entry(
+                                update_dc, old_date_obj, selected_item_name
+                            )
+                            st.session_state.confirm_delete_delivery = False
+                            st.success("✅ Delivery record deleted successfully.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Failed to delete delivery entry: {e}")
             else:
                 st.info("No delivery records found for this DC.")
+
 # ============== TAB 4: Create Invoice Details ==============
 with tab4:
     st.title("📋 Create Invoice Details")
