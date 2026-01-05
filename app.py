@@ -1,5 +1,6 @@
 import streamlit as st
 import math
+import sqlite3
 from collections import defaultdict
 from config import items, packing_mode, boxes_pp_heading_name, amount_per_dozen
 from db import (
