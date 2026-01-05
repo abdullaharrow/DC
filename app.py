@@ -620,7 +620,7 @@ with tab7:
                     chunks = [all_rows[i:i + chunk_size] for i in range(0, len(all_rows), chunk_size)]
 
                     # column widths
-                    col_widths = [30, 40, 65, 60, 34, 150, 42, 32, 42]
+                    col_widths = [30, 40, 65, 60, 34, 150, 44, 30, 42]
                     # ✅ PERFECT-ALIGN FOOTER WITH RIGHT-SIDE PRINT
                     footer_texts = [
                         ["1. Handkerchiefs Goods 6213", "For SHAHANAZ BANU"],
@@ -632,12 +632,13 @@ with tab7:
                     ]
 
                     grand_total = df["Amount"].sum()
+                    total_dozens = round(df["Dozens"].sum(), 2)
 
                     for page_index, chunk in enumerate(chunks):
                         table_data = [header_row] + chunk
 
                         if page_index == len(chunks) - 1:
-                            total_row = ["GRAND TOTAL", "", "", "", "", "", "", "", grand_total]
+                            total_row = ["GRAND TOTAL", "", "", "", "", "", total_dozens, "", grand_total]
                             table_data.append(total_row)
 
                         table = Table(table_data, colWidths=col_widths, repeatRows=1)
@@ -653,7 +654,7 @@ with tab7:
 
                         if page_index == len(chunks) - 1:
                             last_row_idx = len(table_data) - 1
-                            table_style.add('SPAN', (0, last_row_idx), (7, last_row_idx))
+                            table_style.add('SPAN', (0, last_row_idx), (5, last_row_idx))
                             table_style.add('ALIGN', (8, last_row_idx), (8, last_row_idx), 'CENTER')
                             table_style.add('FONTSIZE', (0, last_row_idx), (8, last_row_idx), 13)
                             table_style.add('FONTNAME', (0, last_row_idx), (0, last_row_idx), bold_font)
