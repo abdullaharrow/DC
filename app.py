@@ -616,7 +616,7 @@ with tab7:
                     chunks = [all_rows[i:i + chunk_size] for i in range(0, len(all_rows), chunk_size)]
 
                     # column widths
-                    col_widths = [30, 40, 65, 60, 34, 150, 44, 30, 42]
+                    col_widths = [30, 40, 65, 60, 34, 150, 46, 28, 42]
                     # ✅ PERFECT-ALIGN FOOTER WITH RIGHT-SIDE PRINT
                     footer_texts = [
                         ["1. Handkerchiefs Goods 6213", "For SHAHANAZ BANU"],
