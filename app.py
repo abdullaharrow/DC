@@ -296,6 +296,7 @@ with tab3:
     # ---------- LOAD DC ----------
     if "update_dc" in st.session_state and st.session_state.update_dc:
         update_dc = st.session_state.update_dc
+        # dc_row_data contains the Master/Planned records
         dc_row_data, created_at = fetch_dc_entry(update_dc)
 
         if dc_row_data:
@@ -345,9 +346,18 @@ with tab3:
                     old_box_val = float(target_row["Delivered_Boxes"])
                     old_date_obj = datetime.strptime(old_date_str, "%Y-%m-%d").date()
 
+                    # --- VALIDATION: Find Planned Boxes for this item ---
+                    planned_record = next((row for row in dc_row_data if row["Item"] == selected_item_name), None)
+                    planned_boxes = float(planned_record["Boxes"]) if planned_record else 0.0
+
                     col1, col2 = st.columns(2)
                     with col1:
                         new_box_val = st.number_input("Update Boxes", min_value=0.0, value=old_box_val)
+                        
+                        # Show Warning if delivered > planned
+                        if new_box_val > planned_boxes:
+                            st.warning(f"⚠️ Warning: Delivered boxes ({new_box_val}) exceed Planned boxes ({planned_boxes})")
+
                     with col2:
                         change_date = st.checkbox("Change Date?")
                         new_date = st.date_input("New Date", value=old_date_obj) if change_date else None
@@ -355,9 +365,17 @@ with tab3:
                     col_upd, col_del = st.columns([4, 1])
                     with col_upd:
                         if st.button("💾 Update Record"):
-                            update_dc_delivery_entry(update_dc, old_date_obj, selected_item_name, new_box_val, new_date)
-                            st.success("✅ Delivery updated.")
-                            st.rerun()
+                            # Block the update if it exceeds planned total
+                            if new_box_val > planned_boxes:
+                                st.error(f"❌ Cannot update: Delivered quantity ({new_box_val}) cannot exceed Planned quantity ({planned_boxes}).")
+                            else:
+                                try:
+                                    update_dc_delivery_entry(update_dc, old_date_obj, selected_item_name, new_box_val, new_date)
+                                    st.success("✅ Delivery updated.")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Update failed: {e}")
+
                     with col_del:
                         if st.button("🗑️ Delete Record"):
                             confirm_delete_delivery_dialog(update_dc, old_date_obj, selected_item_name)
@@ -365,7 +383,6 @@ with tab3:
                     st.info("No delivery records found.")
         else:
             st.warning("❌ No DC found.")
-
 # ============== TAB 4: Create Invoice Details ==============
 with tab4:
     st.title("📋 Create Invoice Details")
