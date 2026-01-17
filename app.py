@@ -1,6 +1,7 @@
 import streamlit as st
 import math
 import sqlite3
+import plotly.express as px
 from collections import defaultdict
 from config import items, packing_mode, boxes_pp_heading_name, amount_per_dozen
 from db import (
@@ -40,11 +41,11 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "➕ New DC Entry",
     "📋 View DC Details",
     "✏️ Update DC Details",
-    "📋 Create Invoice Details",
+    "🧾 Create Invoice Details",
     "🔍 View Invoice Details",
     "🕒 Pending DC Details",
     "🖨️ Print Invoice",
-    "📊 Statistics"
+    "📊 Statistics & Insights"
 ])
 
 
@@ -385,7 +386,7 @@ with tab3:
             st.warning("❌ No DC found.")
 # ============== TAB 4: Create Invoice Details ==============
 with tab4:
-    st.title("📋 Create Invoice Details")
+    st.title("🧾 Create Invoice Details")
 
     # --- Date range selection ---
     col1, col2 = st.columns(2)
@@ -703,67 +704,52 @@ with tab7:
                     )
 # ================= TAB 8: STATISTICS =================
 # ================= TAB 8: STATISTICS =================
+# ================= TAB 8: STATISTICS =================
 with tab8:
-    st.title("📊 Statistics")
+    st.title("📊 Statistics & Insights")
 
     # ---------- KPI STYLES ----------
     st.markdown("""
     <style>
     .kpi-card {
-        padding: 18px;
+        padding: 20px;
         border-radius: 18px;
         text-align: center;
-        box-shadow: 0 8px 22px rgba(0,0,0,0.15);
+        box-shadow: 0 8px 22px rgba(0,0,0,0.1);
         transition: all 0.3s ease-in-out;
         color: white;
+        margin-bottom: 15px;
     }
     .kpi-card:hover {
-        transform: translateY(-6px) scale(1.04);
-        box-shadow: 0 16px 36px rgba(0,0,0,0.25);
+        transform: translateY(-5px);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.15);
     }
-    .kpi-title {
-        font-size: 14px;
-        font-weight: 600;
-        opacity: 0.95;
-    }
-    .kpi-value {
-        font-size: 30px;
-        font-weight: 800;
-        margin-top: 6px;
-    }
+    .kpi-title { font-size: 14px; font-weight: 600; opacity: 0.9; }
+    .kpi-value { font-size: 28px; font-weight: 800; margin-top: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
     # ---------- DATE FILTER ----------
     c1, c2 = st.columns(2)
     with c1:
-        start_date = st.date_input(
-            "📅 From Date",
-            value=date.today().replace(day=1),
-            key="tab8_from_date"
-        )
+        start_date = st.date_input("📅 From Date", value=date.today().replace(day=1), key="tab8_from_date")
     with c2:
-        end_date = st.date_input(
-            "📅 To Date",
-            value=date.today(),
-            key="tab8_to_date"
-        )
+        end_date = st.date_input("📅 To Date", value=date.today(), key="tab8_to_date")
 
     if start_date > end_date:
         st.error("❌ 'From Date' cannot be after 'To Date'")
     else:
         try:
+            # 1. Fetch Data
             df = get_dc_delivery_details_with_date_filter(start_date, end_date)
 
             if df.empty:
                 st.warning("⚠️ No records found for the selected date range.")
             else:
-                # ---------- CALCULATIONS ----------
+                # 2. Calculations
                 df["Packing Mode"] = df["item"].apply(lambda x: packing_mode.get(x, 0))
                 df["Dozens"] = (df["boxes"] * df["Packing Mode"]) / 12
-                df["Amount"] = df.apply(
-                    lambda r: r["Dozens"] * amount_per_dozen.get(r["item"], 0), axis=1
-                )
+                df["Amount"] = df.apply(lambda r: r["Dozens"] * amount_per_dozen.get(r["item"], 0), axis=1)
 
                 total_boxes = df["boxes"].sum()
                 total_dozens = df["Dozens"].sum()
@@ -773,107 +759,58 @@ with tab8:
                 pending_dcs = len(pending_df["dc_entry_number"].unique()) if not pending_df.empty else 0
                 completed_dcs = len(df["dc_entry_number"].unique()) - pending_dcs
 
-                # ---------- KPI COLOR LOGIC ----------
-                def grad_green():
-                    return "linear-gradient(135deg,#16a34a,#22c55e)"
-
-                def grad_orange():
-                    return "linear-gradient(135deg,#f59e0b,#fbbf24)"
-
-                def grad_red():
-                    return "linear-gradient(135deg,#dc2626,#ef4444)"
-
-                def box_color(v):
-                    return grad_green() if v >= 1000 else grad_orange() if v >= 500 else grad_red()
-
-                def amount_color(v):
-                    return grad_green() if v >= 100000 else grad_orange() if v >= 50000 else grad_red()
-
-                def pending_color(v):
-                    return grad_green() if v == 0 else grad_orange() if v <= 3 else grad_red()
-
-                # ---------- KPI DISPLAY ----------
+                # KPI Colors
+                def grad_green(): return "linear-gradient(135deg,#16a34a,#22c55e)"
+                def grad_orange(): return "linear-gradient(135deg,#f59e0b,#fbbf24)"
+                def grad_red(): return "linear-gradient(135deg,#dc2626,#ef4444)"
+                
+                # 3. KPI Display
                 st.markdown("### 📈 Summary Overview")
-
                 k1, k2, k3, k4, k5 = st.columns(5)
-
-                k1.markdown(f"""
-                <div class="kpi-card" style="background:{box_color(total_boxes)};">
-                    <div class="kpi-title">📦 Total Boxes</div>
-                    <div class="kpi-value">{total_boxes:,.0f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                k2.markdown(f"""
-                <div class="kpi-card" style="background:linear-gradient(135deg,#2563eb,#3b82f6);">
-                    <div class="kpi-title">🧺 Total Dozens</div>
-                    <div class="kpi-value">{total_dozens:,.2f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                k3.markdown(f"""
-                <div class="kpi-card" style="background:{amount_color(total_amount)};">
-                    <div class="kpi-title">💰 Total Amount</div>
-                    <div class="kpi-value">₹{total_amount:,.2f}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                k4.markdown(f"""
-                <div class="kpi-card" style="background:{grad_green()};">
-                    <div class="kpi-title">✅ Completed DCs</div>
-                    <div class="kpi-value">{completed_dcs}</div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                k5.markdown(f"""
-                <div class="kpi-card" style="background:{pending_color(pending_dcs)};">
-                    <div class="kpi-title">⏳ Pending DCs</div>
-                    <div class="kpi-value">{pending_dcs}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                
+                k1.markdown(f'<div class="kpi-card" style="background:{grad_green() if total_boxes >= 1000 else grad_orange()};"><div class="kpi-title">📦 Total Boxes</div><div class="kpi-value">{total_boxes:,.0f}</div></div>', unsafe_allow_html=True)
+                k2.markdown(f'<div class="kpi-card" style="background:linear-gradient(135deg,#2563eb,#3b82f6);"><div class="kpi-title">🧺 Total Dozens</div><div class="kpi-value">{total_dozens:,.2f}</div></div>', unsafe_allow_html=True)
+                k3.markdown(f'<div class="kpi-card" style="background:{grad_green() if total_amount >= 100000 else grad_orange()};"><div class="kpi-title">💰 Total Amount</div><div class="kpi-value">₹{total_amount:,.2f}</div></div>', unsafe_allow_html=True)
+                k4.markdown(f'<div class="kpi-card" style="background:{grad_green()};"><div class="kpi-title">✅ Completed DCs</div><div class="kpi-value">{completed_dcs}</div></div>', unsafe_allow_html=True)
+                k5.markdown(f'<div class="kpi-card" style="background:{grad_red() if pending_dcs > 3 else grad_orange()};"><div class="kpi-title">⏳ Pending DCs</div><div class="kpi-value">{pending_dcs}</div></div>', unsafe_allow_html=True)
 
                 st.markdown("---")
 
-                # ---------- DETAILED TABLE ----------
-                st.markdown("### 📊 Detailed Delivery Data")
-                df_display = df[["date", "dc_entry_number", "item", "boxes", "Packing Mode", "Dozens", "Amount"]]
-                df_display.rename(columns={
-                    "date": "Date",
-                    "dc_entry_number": "DC Number",
-                    "item": "Item",
-                    "boxes": "Boxes"
-                }, inplace=True)
+                # 4. Visual Trends
+                st.markdown("### 📊 Analytics")
+                v1, v2 = st.columns([3, 2])
 
-                df_display.sort_values(by="Date", inplace=True)
-                df_display.insert(0, "Sl.No", range(1, len(df_display) + 1))
+                with v1:
+                    st.markdown("**Production Trend (Boxes)**")
+                    df_trend = df.groupby("date")["boxes"].sum().reset_index()
+                    fig_trend = px.area(df_trend, x="date", y="boxes", template="plotly_white", color_discrete_sequence=["#2563eb"])
+                    fig_trend.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0))
+                    st.plotly_chart(fig_trend, use_container_width=True)
 
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
+                with v2:
+                    st.markdown("**Revenue by Item**")
+                    item_chart_data = df.groupby("item")["Amount"].sum().reset_index()
+                    fig_pie = px.pie(item_chart_data, values="Amount", names="item", hole=0.4, color_discrete_sequence=px.colors.qualitative.Safe)
+                    fig_pie.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
+                    fig_pie.update_traces(textinfo='percent+label')
+                    st.plotly_chart(fig_pie, use_container_width=True)
 
                 st.markdown("---")
 
-                # ---------- ITEM SUMMARY ----------
+                # 5. Item Summary Table
                 st.markdown("### 🧮 Cumulative Summary by Item")
-                item_summary = df.groupby("item", as_index=False).agg({
-                    "Dozens": "sum",
-                    "Amount": "sum"
-                }).sort_values(by="Amount", ascending=False)
-
-                item_summary.rename(columns={
-                    "item": "Item (Particular)",
-                    "Dozens": "Total Dozens",
-                    "Amount": "Total Amount"
-                }, inplace=True)
-
+                item_summary = df.groupby("item", as_index=False).agg({"Dozens": "sum", "Amount": "sum"}).sort_values(by="Amount", ascending=False)
+                item_summary.rename(columns={"item": "Item", "Dozens": "Total Dozens", "Amount": "Total Amount"}, inplace=True)
                 item_summary.insert(0, "Sl.No", range(1, len(item_summary) + 1))
+                st.dataframe(item_summary.style.format({"Total Dozens": "{:,.2f}", "Total Amount": "₹{:,.2f}"}), use_container_width=True, hide_index=True)
 
-                st.dataframe(
-                    item_summary.style.format({
-                        "Total Dozens": "{:,.2f}",
-                        "Total Amount": "₹{:,.2f}"
-                    }),
-                    use_container_width=True,
-                    hide_index=True
-                )
+                # 6. Detailed Data (Expander)
+                with st.expander("📋 View Detailed Transaction Logs"):
+                    df_display = df[["date", "dc_entry_number", "item", "boxes", "Packing Mode", "Dozens", "Amount"]].copy()
+                    df_display.columns = ["Date", "DC No", "Item", "Boxes", "Pack Mode", "Dozens", "Amount"]
+                    st.dataframe(df_display.sort_values(by="Date"), use_container_width=True, hide_index=True)
+                    csv = df_display.to_csv(index=False).encode('utf-8')
+                    st.download_button("📥 Download CSV", data=csv, file_name="report.csv", mime="text/csv")
 
         except Exception as e:
             st.error(f"⚠️ Error loading statistics: {e}")
