@@ -725,7 +725,7 @@ with tab8:
         box-shadow: 0 12px 30px rgba(0,0,0,0.15);
     }
     .kpi-title { font-size: 14px; font-weight: 600; opacity: 0.9; }
-    .kpi-value { font-size: 28px; font-weight: 800; margin-top: 5px; }
+    .kpi-value { font-size: 26px; font-weight: 800; margin-top: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -751,33 +751,81 @@ with tab8:
                 df["Dozens"] = (df["boxes"] * df["Packing Mode"]) / 12
                 df["Amount"] = df.apply(lambda r: r["Dozens"] * amount_per_dozen.get(r["item"], 0), axis=1)
 
+                # Summary Totals
                 total_boxes = df["boxes"].sum()
                 total_dozens = df["Dozens"].sum()
                 total_amount = df["Amount"].sum()
+                completed_dcs = len(df["dc_entry_number"].unique())
 
-                pending_df = get_uncompleted_dcs()
-                pending_dcs = len(pending_df["dc_entry_number"].unique()) if not pending_df.empty else 0
-                completed_dcs = len(df["dc_entry_number"].unique()) - pending_dcs
+                # Average Amount per Day
+                num_days = (end_date - start_date).days + 1
+                avg_daily_amount = total_amount / num_days if num_days > 0 else 0
 
                 # KPI Colors
                 def grad_green(): return "linear-gradient(135deg,#16a34a,#22c55e)"
                 def grad_orange(): return "linear-gradient(135deg,#f59e0b,#fbbf24)"
-                def grad_red(): return "linear-gradient(135deg,#dc2626,#ef4444)"
+                def grad_blue(): return "linear-gradient(135deg,#2563eb,#3b82f6)"
+                def grad_gold(): return "linear-gradient(135deg,#b45309,#d97706)" 
                 
                 # 3. KPI Display
                 st.markdown("### 📈 Summary Overview")
                 k1, k2, k3, k4, k5 = st.columns(5)
                 
                 k1.markdown(f'<div class="kpi-card" style="background:{grad_green() if total_boxes >= 1000 else grad_orange()};"><div class="kpi-title">📦 Total Boxes</div><div class="kpi-value">{total_boxes:,.0f}</div></div>', unsafe_allow_html=True)
-                k2.markdown(f'<div class="kpi-card" style="background:linear-gradient(135deg,#2563eb,#3b82f6);"><div class="kpi-title">🧺 Total Dozens</div><div class="kpi-value">{total_dozens:,.2f}</div></div>', unsafe_allow_html=True)
-                k3.markdown(f'<div class="kpi-card" style="background:{grad_green() if total_amount >= 100000 else grad_orange()};"><div class="kpi-title">💰 Total Amount</div><div class="kpi-value">₹{total_amount:,.2f}</div></div>', unsafe_allow_html=True)
-                k4.markdown(f'<div class="kpi-card" style="background:{grad_green()};"><div class="kpi-title">✅ Completed DCs</div><div class="kpi-value">{completed_dcs}</div></div>', unsafe_allow_html=True)
-                k5.markdown(f'<div class="kpi-card" style="background:{grad_red() if pending_dcs > 3 else grad_orange()};"><div class="kpi-title">⏳ Pending DCs</div><div class="kpi-value">{pending_dcs}</div></div>', unsafe_allow_html=True)
+                k2.markdown(f'<div class="kpi-card" style="background:{grad_blue()};"><div class="kpi-title">🧺 Total Dozens</div><div class="kpi-value">{total_dozens:,.2f}</div></div>', unsafe_allow_html=True)
+                k3.markdown(f'<div class="kpi-card" style="background:{grad_green() if total_amount >= 100000 else grad_orange()};"><div class="kpi-title">💰 Total Amount</div><div class="kpi-value">₹{total_amount:,.0f}</div></div>', unsafe_allow_html=True)
+                k4.markdown(f'<div class="kpi-card" style="background:{grad_blue()};"><div class="kpi-title">✅ Completed DCs</div><div class="kpi-value">{completed_dcs}</div></div>', unsafe_allow_html=True)
+                k5.markdown(f'<div class="kpi-card" style="background:{grad_gold()};"><div class="kpi-title">📊 Avg Amount/Day</div><div class="kpi-value">₹{avg_daily_amount:,.2f}</div></div>', unsafe_allow_html=True)
 
                 st.markdown("---")
 
-                # 4. Visual Trends
-                st.markdown("### 📊 Analytics")
+                # 4. PACKING MODE ANALYSIS (NEW SECTION)
+                st.markdown("### 📦 Earnings by Packing Mode (3, 5, 6, 7, 12)")
+                
+                # Filter for the specific modes you mentioned
+                target_modes = [3, 5, 6, 7, 12]
+                pm_df = df[df["Packing Mode"].isin(target_modes)].copy()
+                
+                if pm_df.empty:
+                    st.info("No data available for the specified Packing Modes in this date range.")
+                else:
+                    pm_summary = pm_df.groupby("Packing Mode").agg({
+                        "boxes": "sum",
+                        "Amount": "sum"
+                    }).reset_index()
+                    
+                    # Sort for better visualization
+                    pm_summary = pm_summary.sort_values("Packing Mode")
+
+                    col_chart, col_table = st.columns([3, 2])
+                    
+                    with col_chart:
+                        fig_pm = px.bar(
+                            pm_summary, 
+                            x="Packing Mode", 
+                            y="Amount", 
+                            text_auto='.2s',
+                            title="Revenue by Pack Mode",
+                            labels={"Packing Mode": "Pack Mode (Quantity)", "Amount": "Total Earning (₹)"},
+                            color="Amount",
+                            color_continuous_scale="Viridis"
+                        )
+                        fig_pm.update_layout(height=350, margin=dict(l=0, r=0, t=30, b=0))
+                        st.plotly_chart(fig_pm, use_container_width=True)
+                    
+                    with col_table:
+                        st.markdown("**Breakdown Table**")
+                        pm_summary.columns = ["Pack Mode", "Total Boxes", "Total Earning"]
+                        st.dataframe(
+                            pm_summary.style.format({"Total Earning": "₹{:,.2f}"}), 
+                            hide_index=True, 
+                            use_container_width=True
+                        )
+
+                st.markdown("---")
+
+                # 5. Visual Trends
+                st.markdown("### 📊 General Analytics")
                 v1, v2 = st.columns([3, 2])
 
                 with v1:
@@ -795,16 +843,14 @@ with tab8:
                     fig_pie.update_traces(textinfo='percent+label')
                     st.plotly_chart(fig_pie, use_container_width=True)
 
-                st.markdown("---")
-
-                # 5. Item Summary Table
+                # 6. Item Summary Table
                 st.markdown("### 🧮 Cumulative Summary by Item")
                 item_summary = df.groupby("item", as_index=False).agg({"Dozens": "sum", "Amount": "sum"}).sort_values(by="Amount", ascending=False)
                 item_summary.rename(columns={"item": "Item", "Dozens": "Total Dozens", "Amount": "Total Amount"}, inplace=True)
                 item_summary.insert(0, "Sl.No", range(1, len(item_summary) + 1))
                 st.dataframe(item_summary.style.format({"Total Dozens": "{:,.2f}", "Total Amount": "₹{:,.2f}"}), use_container_width=True, hide_index=True)
 
-                # 6. Detailed Data (Expander)
+                # 7. Detailed Data (Expander)
                 with st.expander("📋 View Detailed Transaction Logs"):
                     df_display = df[["date", "dc_entry_number", "item", "boxes", "Packing Mode", "Dozens", "Amount"]].copy()
                     df_display.columns = ["Date", "DC No", "Item", "Boxes", "Pack Mode", "Dozens", "Amount"]
