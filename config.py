@@ -7,6 +7,7 @@ packing_mode = {
     "G 180 (pp)": 3,
     "G 210": 3,
     "G 230": 3,
+	"G 240": 3,
     "G 260": 3,
     "G 290": 3,
 
@@ -29,6 +30,7 @@ packing_mode = {
     "L 175 (5 Pc’s)": 5,
     "L 240 (5 Pc’s)": 5,
 	"L 340 (6 Pc’s)": 6,
+	"Wedding Collection 260": 3,
 
     # 18: value = 7
     "L 340 or Weekly": 7,
@@ -144,6 +146,7 @@ amount_per_dozen = {
     "G 180 (pp)": 18,
     "G 210": 18,
     "G 230": 18,
+	"G 240": 18,
     "G 260": 18,
     "G 290": 18,
 
@@ -166,6 +169,7 @@ amount_per_dozen = {
     "L 175 (5 Pc’s)": 18,
     "L 240 (5 Pc’s)": 18,
 	"L 340 (6 Pc’s)": 18,
+	"Wedding Collection 260": 18,
 
     # 18: value = 7
     "L 340 or Weekly": 18,
