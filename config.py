@@ -38,6 +38,7 @@ packing_mode = {
     # 19–97: value = 12
 	"New Men (6 Pc's PP)": 6,
 	"Millenium Geo Plus (6 Pc's)": 6,
+	"Boyz (6 Pc's)": 6,
 	"100% cotton WxW (6 Pc's PP)": 6,
     "Polo WxW (12 Pc's box)": 12,
 	"Polo CxC (12 Pc's box)": 12,
@@ -178,6 +179,7 @@ amount_per_dozen = {
     # 19–97: value = 12
 	"New Men (6 Pc's PP)": 4,
 	"Millenium Geo Plus (6 Pc's)": 4,
+	"Boyz (6 Pc's)": 4,
 	"100% cotton WxW (6 Pc's PP)": 4,
     "Polo WxW (12 Pc's box)": 4,
 	"Polo CxC (12 Pc's box)": 4,

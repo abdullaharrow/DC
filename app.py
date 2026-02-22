@@ -37,12 +37,12 @@ def compute_boxes(item, dozens):
     return round(total_units / packing_mode.get(item, 1), 2)
 
 # --- Tabs ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab6, tab7, tab8 = st.tabs([
     "➕ New DC Entry",
     "📋 View DC Details",
     "✏️ Update DC Details",
     "🧾 Create Invoice Details",
-    "🔍 View Invoice Details",
+    # "🔍 View Invoice Details",
     "🕒 Pending DC Details",
     "🖨️ Print Invoice",
     "📊 Statistics & Insights"
@@ -460,52 +460,54 @@ with tab4:
                         st.error(f"❌ Invoice '{invoice_no}' already exists!")
 
 # ============== TAB 5: View Invoice Details ==============
-with tab5:
-    st.title("🔍 View Invoice Details")
 
-    invoice_search = st.text_input("Enter Invoice Number (e.g., INV_001)")
+#with tab5:
+ #   st.title("🔍 View Invoice Details")
 
-    if st.button("🔎 Fetch Invoice"):
-        from_date, to_date, df, created_at = get_invoice_delivery_details(invoice_search.strip())
+  #  invoice_search = st.text_input("Enter Invoice Number (e.g., INV_001)")
 
-        if from_date is None:
-            st.error(f"❌ No invoice found with number: {invoice_search}")
-        else:
-            st.info(f"📅 Invoice covers deliveries from **{from_date}** to **{to_date}**")
-            if df.empty:
-                st.warning("⚠️ No delivery records found in this invoice range.")
-            else:
-                df.insert(0, "Sl.no", range(1, len(df) + 1))
+   # if st.button("🔎 Fetch Invoice"):
+    #    from_date, to_date, df, created_at = get_invoice_delivery_details(invoice_search.strip())
 
-                # 🔹 Add Packing Mode
-                df["Packing Mode"] = df["item"].apply(lambda x: packing_mode.get(x, 0))
+#        if from_date is None:
+ #           st.error(f"❌ No invoice found with number: {invoice_search}")
+  #      else:
+   #         st.info(f"📅 Invoice covers deliveries from **{from_date}** to **{to_date}**")
+    #        if df.empty:
+     #           st.warning("⚠️ No delivery records found in this invoice range.")
+      #      else:
+       #         df.insert(0, "Sl.no", range(1, len(df) + 1))
+#
+ #               # 🔹 Add Packing Mode
+  #              df["Packing Mode"] = df["item"].apply(lambda x: packing_mode.get(x, 0))
+#
+ #               # 🔹 Add Dozens (rounded to 2 decimals)
+  #              df["Dozens"] = df.apply(
+   #                 lambda row: (row["boxes"] * packing_mode.get(row["item"], 0)) / 12, axis=1
+    #            ).round(2)
+#
+ #               # Compute Amount using packing_mode & amount_per_dozen
+  #              def compute_amount(row):
+   #                 pieces = row["boxes"] * packing_mode.get(row["item"], 0)   # total pieces
+    #                dozens = pieces / 12                                       # convert to dozens
+     #               rate = amount_per_dozen.get(row["item"], 0)                # rate per dozen
+      #              return dozens * rate
 
-                # 🔹 Add Dozens (rounded to 2 decimals)
-                df["Dozens"] = df.apply(
-                    lambda row: (row["boxes"] * packing_mode.get(row["item"], 0)) / 12, axis=1
-                ).round(2)
-
-                # Compute Amount using packing_mode & amount_per_dozen
-                def compute_amount(row):
-                    pieces = row["boxes"] * packing_mode.get(row["item"], 0)   # total pieces
-                    dozens = pieces / 12                                       # convert to dozens
-                    rate = amount_per_dozen.get(row["item"], 0)                # rate per dozen
-                    return dozens * rate
-
-                df["Amount"] = df.apply(compute_amount, axis=1)
-
+    #            df["Amount"] = df.apply(compute_amount, axis=1)
+#
                 # Format nicely
-                styled_df = df.style.format({
-                    "boxes": "{:.2f}",
-                    "Amount": "₹{:.2f}",
-                    "Dozens": "{:.2f}"
-                })
+ #               styled_df = df.style.format({
+  #                  "boxes": "{:.2f}",
+   #                 "Amount": "₹{:.2f}",
+    #                "Dozens": "{:.2f}"
+     #           })
 
-                st.dataframe(styled_df, hide_index=True, use_container_width=True)
+    #            st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
                 # Show Total Amount at bottom
-                total_amount = df["Amount"].sum()
-                st.subheader(f"💰 Total Invoice Amount: ₹{total_amount:,.2f}")
+     #           total_amount = df["Amount"].sum()
+      #          st.subheader(f"💰 Total Invoice Amount: ₹{total_amount:,.2f}")
+
 
 with tab6:
     st.title("🕒 Pending DC Details")
@@ -522,14 +524,30 @@ with tab6:
                 group = group.reset_index(drop=True)
                 group.insert(0, "Sl.no", range(1, len(group) + 1))
 
+                if not group.empty:
+                    created_at_value = group.iloc[0, -1]  # first row, last column
+                    
+                    if pd.notna(created_at_value):
+                        created_at_dt = pd.to_datetime(created_at_value)
+                        st.info(f"📅 Created at: {created_at_dt.strftime('%d-%m-%Y %H:%M:%S')}")
+
+                group = group.iloc[:, :-1]
+
                 # Add Pending Boxes column
-                group["Pending_Boxes"] = group["planned_boxes"] - group["delivered_boxes"]
+                group["pending_boxes"] = group["planned_boxes"] - group["delivered_boxes"]
+
+                group["pieces_per_box"] = group["item"].map(packing_mode).fillna(0)
+
+                group["pending_dozens"] = (group["pending_boxes"] * group["pieces_per_box"]) / 12
+
+                group.drop(columns=["pieces_per_box"], inplace=True)
 
                 # Display with formatting
                 styled_group = group.style.format({
                     "planned_boxes": "{:.2f}",
                     "delivered_boxes": "{:.2f}",
-                    "Pending_Boxes": "{:.2f}"
+                    "pending_boxes": "{:.2f}",
+                    "pending_dozens": "{:.2f}"
                 })
 
                 st.dataframe(styled_group, hide_index=True, use_container_width=True)

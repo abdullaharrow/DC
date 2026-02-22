@@ -278,14 +278,21 @@ def get_invoice_delivery_details(invoice_number):
 def get_uncompleted_dcs():
     conn = sqlite3.connect(DB_FILE)
     query = """
-        SELECT r.dc_entry_number, r.item, r.boxes as planned_boxes, 
-               COALESCE(SUM(d.boxes), 0) as delivered_boxes
-        FROM dc_rows r
-        LEFT JOIN dc_delivery_details d 
-            ON r.dc_entry_number = d.dc_entry_number AND r.item = d.item
-        GROUP BY r.dc_entry_number, r.item, r.boxes
-        HAVING delivered_boxes < r.boxes
-        ORDER BY r.dc_entry_number
+        WITH pending_dc AS (
+            SELECT r.dc_entry_number, r.item, r.boxes as planned_boxes, 
+                    COALESCE(SUM(d.boxes), 0) as delivered_boxes
+                FROM dc_rows r
+                LEFT JOIN dc_delivery_details d 
+                    ON r.dc_entry_number = d.dc_entry_number AND r.item = d.item
+                GROUP BY r.dc_entry_number, r.item, r.boxes
+                HAVING delivered_boxes < r.boxes
+                ORDER BY r.dc_entry_number
+        )
+        SELECT p.*, t.created_at
+        FROM pending_dc p
+        JOIN dc_entries t
+            ON p.dc_entry_number = t.dc_entry_number
+        ORDER BY p.dc_entry_number;
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
