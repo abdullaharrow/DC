@@ -146,6 +146,7 @@ with tab1:
 
 
 # ============== TAB 2: VIEW EXISTING DC ==============
+# ============== TAB 2: VIEW EXISTING DC ==============
 with tab2:
     st.title("📋 View DC Entry")
 
@@ -219,14 +220,49 @@ with tab2:
                     
                     submitted = st.form_submit_button("💾 Save Entry")
                     if submitted:
-                        # Instead of saving immediately, trigger the dialog
                         confirm_delivery_dialog(search_dc, date_val, item_val, boxes_val)
 
-            # ========== DELIVERY SUMMARY SECTION ==========
+            # ========== DELIVERY SUMMARY SECTION WITH INVOICE MAPPING ==========
             with st.expander("Existing Delivery Details of the DC"):
                 st.markdown("### 📦 Delivery Summary for DC: `" + search_dc + "`") 
                 summary_df = get_dc_delivery_details(search_dc)
+                
                 if not summary_df.empty:
+                    # Fetch all invoices (Now includes from_date and to_date)
+                    all_invoices = get_all_invoices() 
+                    
+                    def find_invoice(row_date_str):
+                        if not all_invoices:
+                            return "N/A"
+                        
+                        try:
+                            # row_date is string "YYYY-MM-DD" from DB
+                            row_dt = datetime.strptime(row_date_str, "%Y-%m-%d").date()
+                        except:
+                            return "N/A"
+
+                        for inv in all_invoices:
+                            # Parse invoice range
+                            try:
+                                inv_from = datetime.fromisoformat(inv['from_date']).date()
+                                inv_to = datetime.fromisoformat(inv['to_date']).date()
+                                
+                                if inv_from <= row_dt <= inv_to:
+                                    return inv['invoice_number']
+                            except:
+                                continue
+                        return "N/A"
+
+                    # Apply matching logic
+                    summary_df["Invoice No"] = summary_df["date"].apply(find_invoice)
+                    
+                    # Reorder: Sl.No, Date, Invoice No, Item_Name, Delivered_Boxes
+                    cols = summary_df.columns.tolist()
+                    if "Invoice No" in cols:
+                        # Move Invoice No to the 2nd position
+                        cols.insert(1, cols.pop(cols.index("Invoice No")))
+                        summary_df = summary_df[cols]
+
                     st.dataframe(summary_df, hide_index=True, use_container_width=True)
                 else:
                     st.info("No delivery entries found for this DC.")
@@ -579,16 +615,16 @@ with tab7:
 
                     y_top = height - margin
                     canvas.setFont(base_font, 12)
-                    canvas.drawString(margin + 2, y_top, "PAN No: DJOPB0004F")
-                    canvas.drawRightString(width - margin - 2, y_top, "Mob: 8825766745")
+                    canvas.drawString(margin + 2, y_top, "PAN No: BVMPA6038E")
+                    canvas.drawRightString(width - margin - 2, y_top, "Mob: 8754789900")
 
                     canvas.setFont(base_font, 14)
                     canvas.drawCentredString(width / 2.0, y_top - 20, "JOB INVOICE")
 
                     canvas.setFont(base_font, 12)
-                    canvas.drawCentredString(width / 2.0, y_top - 40, "SHAHANAZ BANU")
+                    canvas.drawCentredString(width / 2.0, y_top - 40, "S K ABDULLAH")
                     canvas.drawCentredString(width / 2.0, y_top - 55,
-                                             "No : 39/16/2 , Nayar Vardha Pillai Street, Royapettah, Chennai - 600014")
+                                             "No : 53/20, Elephant Tank 6th Street, Royapettah, Chennai - 600014")
 
                     # Bill No & Date in bold
                     bill_date_y = y_top - 75
@@ -637,7 +673,7 @@ with tab7:
                     col_widths = [30, 40, 65, 60, 34, 150, 46, 28, 42]
                     # ✅ PERFECT-ALIGN FOOTER WITH RIGHT-SIDE PRINT
                     footer_texts = [
-                        ["1. Handkerchiefs Goods 6213", "For SHAHANAZ BANU"],
+                        ["1. Handkerchiefs Goods 6213", "For S K ABDULLAH"],
                         ["2. Packing of Handkerchiefs Not for sale", ""],
                         ["3. Good Against party DC and Date                    ________________________", ""],
                         ["4. SAC Code: 9988                                              ________________________", ""],
@@ -704,6 +740,7 @@ with tab7:
                     )
 # ================= TAB 8: STATISTICS =================
 # ================= TAB 8: STATISTICS =================
+# =========================
 # ================= TAB 8: STATISTICS =================
 with tab8:
     st.title("📊 Statistics & Insights")
@@ -712,20 +749,18 @@ with tab8:
     st.markdown("""
     <style>
     .kpi-card {
-        padding: 20px;
-        border-radius: 18px;
+        padding: 18px;
+        border-radius: 16px;
         text-align: center;
-        box-shadow: 0 8px 22px rgba(0,0,0,0.1);
-        transition: all 0.3s ease-in-out;
         color: white;
-        margin-bottom: 15px;
+        font-weight: 600;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+        transition: 0.3s;
     }
     .kpi-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
     }
-    .kpi-title { font-size: 14px; font-weight: 600; opacity: 0.9; }
-    .kpi-value { font-size: 26px; font-weight: 800; margin-top: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -740,123 +775,236 @@ with tab8:
         st.error("❌ 'From Date' cannot be after 'To Date'")
     else:
         try:
-            # 1. Fetch Data
             df = get_dc_delivery_details_with_date_filter(start_date, end_date)
 
             if df.empty:
                 st.warning("⚠️ No records found for the selected date range.")
             else:
-                # 2. Calculations
+                # ----------- Calculations -----------
                 df["Packing Mode"] = df["item"].apply(lambda x: packing_mode.get(x, 0))
                 df["Dozens"] = (df["boxes"] * df["Packing Mode"]) / 12
-                df["Amount"] = df.apply(lambda r: r["Dozens"] * amount_per_dozen.get(r["item"], 0), axis=1)
+                df["Amount"] = df.apply(
+                    lambda r: r["Dozens"] * amount_per_dozen.get(r["item"], 0), axis=1
+                )
 
-                # Summary Totals
                 total_boxes = df["boxes"].sum()
                 total_dozens = df["Dozens"].sum()
                 total_amount = df["Amount"].sum()
                 completed_dcs = len(df["dc_entry_number"].unique())
 
-                # Average Amount per Day
                 num_days = (end_date - start_date).days + 1
                 avg_daily_amount = total_amount / num_days if num_days > 0 else 0
 
-                # KPI Colors
-                def grad_green(): return "linear-gradient(135deg,#16a34a,#22c55e)"
-                def grad_orange(): return "linear-gradient(135deg,#f59e0b,#fbbf24)"
-                def grad_blue(): return "linear-gradient(135deg,#2563eb,#3b82f6)"
-                def grad_gold(): return "linear-gradient(135deg,#b45309,#d97706)" 
-                
-                # 3. KPI Display
+                # ---------- KPI COLOR LOGIC ----------
+                def kpi_color(value, good, medium):
+                    if value >= good:
+                        return "#16a34a"   # Green
+                    elif value >= medium:
+                        return "#f59e0b"   # Orange
+                    else:
+                        return "#dc2626"   # Red
+
+                boxes_color = kpi_color(total_boxes, 500, 200)
+                dozens_color = kpi_color(total_dozens, 300, 100)
+                amount_color = kpi_color(total_amount, 50000, 20000)
+                dc_color = kpi_color(completed_dcs, 20, 10)
+                avg_color = kpi_color(avg_daily_amount, 10000, 5000)
+
+                # ---------- KPI DISPLAY ----------
                 st.markdown("### 📈 Summary Overview")
                 k1, k2, k3, k4, k5 = st.columns(5)
-                
-                k1.markdown(f'<div class="kpi-card" style="background:{grad_green() if total_boxes >= 1000 else grad_orange()};"><div class="kpi-title">📦 Total Boxes</div><div class="kpi-value">{total_boxes:,.0f}</div></div>', unsafe_allow_html=True)
-                k2.markdown(f'<div class="kpi-card" style="background:{grad_blue()};"><div class="kpi-title">🧺 Total Dozens</div><div class="kpi-value">{total_dozens:,.2f}</div></div>', unsafe_allow_html=True)
-                k3.markdown(f'<div class="kpi-card" style="background:{grad_green() if total_amount >= 100000 else grad_orange()};"><div class="kpi-title">💰 Total Amount</div><div class="kpi-value">₹{total_amount:,.0f}</div></div>', unsafe_allow_html=True)
-                k4.markdown(f'<div class="kpi-card" style="background:{grad_blue()};"><div class="kpi-title">✅ Completed DCs</div><div class="kpi-value">{completed_dcs}</div></div>', unsafe_allow_html=True)
-                k5.markdown(f'<div class="kpi-card" style="background:{grad_gold()};"><div class="kpi-title">📊 Avg Amount/Day</div><div class="kpi-value">₹{avg_daily_amount:,.2f}</div></div>', unsafe_allow_html=True)
+
+                with k1:
+                    st.markdown(f"""
+                        <div class="kpi-card" style="background:{boxes_color}">
+                            📦 Total Boxes<br>
+                            <span style="font-size:24px">{total_boxes:,.0f}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                with k2:
+                    st.markdown(f"""
+                        <div class="kpi-card" style="background:{dozens_color}">
+                            🧺 Total Dozens<br>
+                            <span style="font-size:24px">{total_dozens:,.2f}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                with k3:
+                    st.markdown(f"""
+                        <div class="kpi-card" style="background:{amount_color}">
+                            💰 Total Amount<br>
+                            <span style="font-size:24px">₹{total_amount:,.0f}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                with k4:
+                    st.markdown(f"""
+                        <div class="kpi-card" style="background:{dc_color}">
+                            ✅ Completed DCs<br>
+                            <span style="font-size:24px">{completed_dcs}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                with k5:
+                    st.markdown(f"""
+                        <div class="kpi-card" style="background:{avg_color}">
+                            📊 Avg Amount/Day<br>
+                            <span style="font-size:24px">₹{avg_daily_amount:,.2f}</span>
+                        </div>
+                    """, unsafe_allow_html=True)
 
                 st.markdown("---")
 
-                # 4. PACKING MODE ANALYSIS (NEW SECTION)
-                st.markdown("### 📦 Earnings by Packing Mode (3, 5, 6, 7, 12)")
-                
-                # Filter for the specific modes you mentioned
-                target_modes = [3, 5, 6, 7, 12]
-                pm_df = df[df["Packing Mode"].isin(target_modes)].copy()
-                
-                if pm_df.empty:
-                    st.info("No data available for the specified Packing Modes in this date range.")
-                else:
-                    pm_summary = pm_df.groupby("Packing Mode").agg({
-                        "boxes": "sum",
-                        "Amount": "sum"
-                    }).reset_index()
-                    
-                    # Sort for better visualization
-                    pm_summary = pm_summary.sort_values("Packing Mode")
+                # ================= ITEM SEARCH FILTER =================
+                st.markdown("### 🔎 Search by Item")
 
-                    col_chart, col_table = st.columns([3, 2])
-                    
-                    with col_chart:
-                        fig_pm = px.bar(
-                            pm_summary, 
-                            x="Packing Mode", 
-                            y="Amount", 
-                            text_auto='.2s',
-                            title="Revenue by Pack Mode",
-                            labels={"Packing Mode": "Pack Mode (Quantity)", "Amount": "Total Earning (₹)"},
-                            color="Amount",
-                            color_continuous_scale="Viridis"
-                        )
-                        fig_pm.update_layout(height=350, margin=dict(l=0, r=0, t=30, b=0))
-                        st.plotly_chart(fig_pm, use_container_width=True)
-                    
-                    with col_table:
-                        st.markdown("**Breakdown Table**")
-                        pm_summary.columns = ["Pack Mode", "Total Boxes", "Total Earning"]
+                item_list = sorted(df["item"].unique())
+
+                selected_item = st.selectbox(
+                    "Select Item to View Complete DC Details",
+                    options=["-- Select Item --"] + item_list
+                )
+
+                if selected_item != "-- Select Item --":
+                    item_filtered_df = df[df["item"] == selected_item].copy()
+
+                    if item_filtered_df.empty:
+                        st.warning("No records found for selected item.")
+                    else:
+                        st.markdown(f"## 📦 Complete Details for: {selected_item}")
+
+                        item_filtered_df = item_filtered_df.sort_values(by="date")
+                        item_filtered_df.insert(0, "Sl.No", range(1, len(item_filtered_df) + 1))
+
+                        display_df = item_filtered_df[[
+                            "Sl.No",
+                            "date",
+                            "dc_entry_number",
+                            "boxes",
+                            "Packing Mode",
+                            "Dozens",
+                            "Amount"
+                        ]].copy()
+
+                        display_df.columns = [
+                            "Sl.No",
+                            "Date",
+                            "DC No",
+                            "Boxes",
+                            "Pack Mode",
+                            "Dozens",
+                            "Amount"
+                        ]
+
                         st.dataframe(
-                            pm_summary.style.format({"Total Earning": "₹{:,.2f}"}), 
-                            hide_index=True, 
-                            use_container_width=True
+                            display_df.style.format({
+                                "Boxes": "{:.2f}",
+                                "Dozens": "{:.2f}",
+                                "Amount": "₹{:,.2f}"
+                            }),
+                            use_container_width=True,
+                            hide_index=True
                         )
+
+                        total_boxes_item = item_filtered_df["boxes"].sum()
+                        total_dozens_item = item_filtered_df["Dozens"].sum()
+                        total_amount_item = item_filtered_df["Amount"].sum()
+
+                        st.markdown("### 📊 Item Summary")
+                        col1, col2, col3 = st.columns(3)
+                        col1.metric("Total Boxes", f"{total_boxes_item:,.2f}")
+                        col2.metric("Total Dozens", f"{total_dozens_item:,.2f}")
+                        col3.metric("Total Revenue", f"₹{total_amount_item:,.2f}")
 
                 st.markdown("---")
 
-                # 5. Visual Trends
-                st.markdown("### 📊 General Analytics")
-                v1, v2 = st.columns([3, 2])
+                # ---------- PACKING MODE ANALYSIS ----------
+                st.markdown("### 📦 Earnings by Packing Mode")
 
-                with v1:
-                    st.markdown("**Production Trend (Boxes)**")
-                    df_trend = df.groupby("date")["boxes"].sum().reset_index()
-                    fig_trend = px.area(df_trend, x="date", y="boxes", template="plotly_white", color_discrete_sequence=["#2563eb"])
-                    fig_trend.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0))
-                    st.plotly_chart(fig_trend, use_container_width=True)
+                pm_summary = df.groupby("Packing Mode").agg({
+                    "boxes": "sum",
+                    "Amount": "sum"
+                }).reset_index().sort_values("Packing Mode")
 
-                with v2:
-                    st.markdown("**Revenue by Item**")
-                    item_chart_data = df.groupby("item")["Amount"].sum().reset_index()
-                    fig_pie = px.pie(item_chart_data, values="Amount", names="item", hole=0.4, color_discrete_sequence=px.colors.qualitative.Safe)
-                    fig_pie.update_layout(height=300, margin=dict(l=0, r=0, t=10, b=0), showlegend=False)
-                    fig_pie.update_traces(textinfo='percent+label')
-                    st.plotly_chart(fig_pie, use_container_width=True)
+                fig_pm = px.bar(
+                    pm_summary,
+                    x="Packing Mode",
+                    y="Amount",
+                    text_auto='.2s',
+                    title="Revenue by Pack Mode",
+                    color="Amount",
+                    color_continuous_scale="Viridis"
+                )
+                st.plotly_chart(fig_pm, use_container_width=True)
 
-                # 6. Item Summary Table
+                # ---------- Production Trend ----------
+                st.markdown("### 📈 Production Trend (Boxes)")
+                df_trend = df.groupby("date")["boxes"].sum().reset_index()
+                fig_trend = px.area(df_trend, x="date", y="boxes", template="plotly_white")
+                st.plotly_chart(fig_trend, use_container_width=True)
+
+                # ---------- Revenue by Item ----------
+                st.markdown("### 🥧 Revenue by Item")
+                item_chart_data = df.groupby("item")["Amount"].sum().reset_index()
+                fig_pie = px.pie(item_chart_data, values="Amount", names="item", hole=0.4)
+                st.plotly_chart(fig_pie, use_container_width=True)
+
+                # ---------- Cumulative Summary ----------
                 st.markdown("### 🧮 Cumulative Summary by Item")
-                item_summary = df.groupby("item", as_index=False).agg({"Dozens": "sum", "Amount": "sum"}).sort_values(by="Amount", ascending=False)
-                item_summary.rename(columns={"item": "Item", "Dozens": "Total Dozens", "Amount": "Total Amount"}, inplace=True)
-                item_summary.insert(0, "Sl.No", range(1, len(item_summary) + 1))
-                st.dataframe(item_summary.style.format({"Total Dozens": "{:,.2f}", "Total Amount": "₹{:,.2f}"}), use_container_width=True, hide_index=True)
+                item_summary = df.groupby("item", as_index=False).agg({
+                    "Dozens": "sum",
+                    "Amount": "sum"
+                }).sort_values(by="Amount", ascending=False)
 
-                # 7. Detailed Data (Expander)
+                item_summary.rename(columns={
+                    "item": "Item",
+                    "Dozens": "Total Dozens",
+                    "Amount": "Total Amount"
+                }, inplace=True)
+
+                item_summary.insert(0, "Sl.No", range(1, len(item_summary) + 1))
+
+                st.dataframe(
+                    item_summary.style.format({
+                        "Total Dozens": "{:,.2f}",
+                        "Total Amount": "₹{:,.2f}"
+                    }),
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+                # ---------- Detailed Logs ----------
                 with st.expander("📋 View Detailed Transaction Logs"):
-                    df_display = df[["date", "dc_entry_number", "item", "boxes", "Packing Mode", "Dozens", "Amount"]].copy()
-                    df_display.columns = ["Date", "DC No", "Item", "Boxes", "Pack Mode", "Dozens", "Amount"]
-                    st.dataframe(df_display.sort_values(by="Date"), use_container_width=True, hide_index=True)
+                    df_display = df[[
+                        "date",
+                        "dc_entry_number",
+                        "item",
+                        "boxes",
+                        "Packing Mode",
+                        "Dozens",
+                        "Amount"
+                    ]].copy()
+
+                    df_display.columns = [
+                        "Date",
+                        "DC No",
+                        "Item",
+                        "Boxes",
+                        "Pack Mode",
+                        "Dozens",
+                        "Amount"
+                    ]
+
+                    st.dataframe(df_display.sort_values(by="Date"),
+                                 use_container_width=True,
+                                 hide_index=True)
+
                     csv = df_display.to_csv(index=False).encode('utf-8')
-                    st.download_button("📥 Download CSV", data=csv, file_name="report.csv", mime="text/csv")
+                    st.download_button("📥 Download CSV",
+                                       data=csv,
+                                       file_name="report.csv",
+                                       mime="text/csv")
 
         except Exception as e:
             st.error(f"⚠️ Error loading statistics: {e}")

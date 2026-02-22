@@ -294,10 +294,13 @@ def get_uncompleted_dcs():
 
 # ----------------- Fetch All Invoice Numbers -----------------
 def get_all_invoices():
-    """Return a list of all saved invoice numbers."""
+    """Return a list of all saved invoice numbers with their date ranges."""
     conn = sqlite3.connect(DB_FILE)
+    # Using sqlite3.Row allows us to access columns by name like a dictionary
+    conn.row_factory = sqlite3.Row 
     c = conn.cursor()
-    c.execute("SELECT invoice_number FROM invoices ORDER BY invoice_number DESC")
+    c.execute("SELECT invoice_number, from_date, to_date FROM invoices ORDER BY invoice_number DESC")
     rows = c.fetchall()
     conn.close()
-    return [{"invoice_number": row[0]} for row in rows]
+    # Convert rows to a list of dictionaries
+    return [dict(row) for row in rows]
