@@ -633,16 +633,16 @@ with tab7:
 
                     y_top = height - margin
                     canvas.setFont(base_font, 12)
-                    canvas.drawString(margin + 2, y_top, "PAN No: BVMPA6038E")
-                    canvas.drawRightString(width - margin - 2, y_top, "Mob: 8754789900")
+                    canvas.drawString(margin + 2, y_top, "PAN No: DJOPB0004F")
+                    canvas.drawRightString(width - margin - 2, y_top, "Mob: 8825766745")
 
                     canvas.setFont(base_font, 14)
                     canvas.drawCentredString(width / 2.0, y_top - 20, "JOB INVOICE")
 
                     canvas.setFont(base_font, 12)
-                    canvas.drawCentredString(width / 2.0, y_top - 40, "S K ABDULLAH")
+                    canvas.drawCentredString(width / 2.0, y_top - 40, "SHAHANAZ BANU")
                     canvas.drawCentredString(width / 2.0, y_top - 55,
-                                             "No : 53/20, Elephant Tank 6th Street, Royapettah, Chennai - 600014")
+                                             "No : 39/16/2, Nayar vardha Pillai Street, Royapettah, Chennai - 600014")
 
                     # Bill No & Date in bold
                     bill_date_y = y_top - 75
@@ -691,7 +691,7 @@ with tab7:
                     col_widths = [30, 40, 65, 60, 34, 150, 46, 28, 42]
                     # ✅ PERFECT-ALIGN FOOTER WITH RIGHT-SIDE PRINT
                     footer_texts = [
-                        ["1. Handkerchiefs Goods 6213", "For S K ABDULLAH"],
+                        ["1. Handkerchiefs Goods 6213", "For SHAHANAZ BANU"],
                         ["2. Packing of Handkerchiefs Not for sale", ""],
                         ["3. Good Against party DC and Date                    ________________________", ""],
                         ["4. SAC Code: 9988                                              ________________________", ""],
