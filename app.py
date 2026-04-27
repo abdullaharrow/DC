@@ -216,8 +216,14 @@ with tab2:
                     date_val = col1.date_input("Date", value=datetime.today())
                     filtered_items = [row["Item"] for row in dc_data]
                     item_val = col2.selectbox("Item", filtered_items)
-                    boxes_val = col3.number_input(boxes_pp_heading_name, min_value=1, step=1)
-                    
+                    # ✅ FIXED: Decimal input (2.71 etc.)
+                    boxes_val = col3.number_input(
+                        boxes_pp_heading_name,
+                        min_value=0.01,
+                        step=0.01,
+                        format="%.2f"
+                    )
+
                     submitted = st.form_submit_button("💾 Save Entry")
                     if submitted:
                         confirm_delivery_dialog(search_dc, date_val, item_val, boxes_val)
