@@ -3,6 +3,7 @@ packing_mode = {
 	"G 40": 1,
 	"G 60": 1,
     "G 110": 3,
+	"G 120": 3,
     "G 140": 3,
     "G 160": 3,
     "G 180": 3,
@@ -170,6 +171,8 @@ packing_mode = {
     "Slim (6 Pc's)": 6,
     "Sofil Baby (6 Pc's)": 6,
     "Suhasini (6 Pc's)": 6,
+	"Best Quality (6 Pc's)": 6,
+	"Yukthi (6 Pc's)": 6,
     "Wonder (6 Pc's)": 6,
     "Zero (6 Pc's)": 6,
     "Namo WxW (6 Pc's)": 6
@@ -180,6 +183,7 @@ amount_per_dozen = {
 	"G 40": 12,
 	"G 60": 12,
     "G 110": 18,
+	"G 120": 18,
     "G 140": 18,
     "G 160": 18,
     "G 180": 18,
@@ -347,6 +351,8 @@ amount_per_dozen = {
     "Slim (6 Pc's)": 4,
     "Sofil Baby (6 Pc's)": 4,
     "Suhasini (6 Pc's)": 4,
+	"Best Quality (6 Pc's)": 4,
+	"Yukthi (6 Pc's)": 4,
     "Wonder (6 Pc's)": 4,
     "Zero (6 Pc's)": 4,
     "Namo WxW (6 Pc's)": 4

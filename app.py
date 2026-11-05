@@ -283,8 +283,10 @@ with tab3:
     def confirm_delete_dc_dialog(dc_id):
         st.warning(f"⚠️ Are you sure you want to DELETE DC **{dc_id}**? This action cannot be undone.")
         col1, col2 = st.columns(2)
+
         if col1.button("Yes, Delete Everything", type="primary", use_container_width=True):
             dc_row_data, created_at = fetch_dc_entry(dc_id)
+
             if dc_row_data:
                 delete_dc_entry(dc_id)
                 st.session_state.update_dc = None
@@ -292,13 +294,16 @@ with tab3:
                 st.rerun()
             else:
                 st.error("❌ No DC found.")
+
         if col2.button("Cancel", use_container_width=True):
             st.rerun()
 
     @st.dialog("Delete Item from DC")
     def confirm_delete_item_dialog(dc_id, item_name):
         st.warning(f"⚠️ Confirm deletion of item **{item_name}** from this DC?")
+
         col1, col2 = st.columns(2)
+
         if col1.button("Yes, Delete Item", type="primary", use_container_width=True):
             try:
                 delete_dc_row(dc_id, item_name)
@@ -306,13 +311,16 @@ with tab3:
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Failed: {e}")
+
         if col2.button("Cancel", use_container_width=True):
             st.rerun()
 
     @st.dialog("Delete Delivery Record")
     def confirm_delete_delivery_dialog(dc_id, date_obj, item_name):
         st.warning(f"⚠️ Delete delivery record: **{item_name}** on **{date_obj}**?")
+
         col1, col2 = st.columns(2)
+
         if col1.button("Yes, Delete Record", type="primary", use_container_width=True):
             try:
                 delete_dc_delivery_entry(dc_id, date_obj, item_name)
@@ -320,11 +328,13 @@ with tab3:
                 st.rerun()
             except Exception as e:
                 st.error(f"❌ Failed: {e}")
+
         if col2.button("Cancel", use_container_width=True):
             st.rerun()
 
     # --- MAIN UI ---
     update_dc = st.text_input("Enter DC_Entry_Number to update")
+
     col_load, col_delete = st.columns([4, 1])
 
     with col_load:
@@ -338,92 +348,199 @@ with tab3:
 
     # ---------- LOAD DC ----------
     if "update_dc" in st.session_state and st.session_state.update_dc:
+
         update_dc = st.session_state.update_dc
+
         # dc_row_data contains the Master/Planned records
         dc_row_data, created_at = fetch_dc_entry(update_dc)
 
         if dc_row_data:
+
             with st.expander("🗃 Update Master Row (Planned Quantities)", expanded=True):
+
                 row_df = pd.DataFrame(dc_row_data)
+
                 st.write("Current Planned Totals:")
                 st.dataframe(row_df, use_container_width=True, hide_index=True)
 
                 filtered_items = [row["Item"] for row in dc_row_data]
-                selected_item = st.selectbox("Select Item to Update in DC Rows", filtered_items)
-                selected_row = next(row for row in dc_row_data if row["Item"] == selected_item)
+
+                selected_item = st.selectbox(
+                    "Select Item to Update in DC Rows",
+                    filtered_items
+                )
+
+                selected_row = next(
+                    row for row in dc_row_data
+                    if row["Item"] == selected_item
+                )
 
                 col1, col2 = st.columns(2)
+
                 with col1:
-                    new_dozen = st.number_input("New Dozen", min_value=0, step=1, value=int(selected_row["Dozen"]))
+                    new_dozen = st.number_input(
+                        "New Dozen",
+                        min_value=0.00,
+                        value=float(selected_row["Dozen"]),
+                        step=0.01,
+                        format="%.2f"
+                    )
+
                 with col2:
                     new_boxes = compute_boxes(selected_item, new_dozen)
-                    st.number_input("New calculated boxes", value=new_boxes, disabled=True)
+
+                    st.number_input(
+                        "New calculated boxes",
+                        value=float(new_boxes),
+                        format="%.2f",
+                        disabled=True
+                    )
 
                 col_upd, col_del = st.columns([4, 1])
+
                 with col_upd:
                     if st.button("💾 Update Planned Quantity"):
                         try:
-                            update_dc_row(update_dc, selected_item, new_dozen, new_boxes)
-                            st.success(f"✅ Master row updated.")
+                            update_dc_row(
+                                update_dc,
+                                selected_item,
+                                new_dozen,
+                                new_boxes
+                            )
+                            st.success("✅ Master row updated.")
                             st.rerun()
                         except Exception as e:
                             st.error(f"❌ Error: {e}")
 
                 with col_del:
                     if st.button("🗑️ Delete Item"):
-                        confirm_delete_item_dialog(update_dc, selected_item)
+                        confirm_delete_item_dialog(
+                            update_dc,
+                            selected_item
+                        )
 
             st.markdown("---")
 
             # ========== DELIVERY HISTORY ==========
-            with st.expander("🚚 Update Specific Delivery Entry (Delivery History)"):
+            with st.expander(
+                "🚚 Update Specific Delivery Entry (Delivery History)"
+            ):
+
                 delivery_df = get_dc_delivery_details(update_dc)
+
                 if not delivery_df.empty:
-                    st.dataframe(delivery_df, use_container_width=True, hide_index=True)
-                    delivery_df["selection_label"] = delivery_df["date"] + " | " + delivery_df["Item_Name"]
-                    selected_label = st.selectbox("Select Delivery Record", delivery_df["selection_label"])
-                    
-                    target_row = delivery_df[delivery_df["selection_label"] == selected_label].iloc[0]
+
+                    st.dataframe(
+                        delivery_df,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    delivery_df["selection_label"] = (
+                        delivery_df["date"]
+                        + " | "
+                        + delivery_df["Item_Name"]
+                    )
+
+                    selected_label = st.selectbox(
+                        "Select Delivery Record",
+                        delivery_df["selection_label"]
+                    )
+
+                    target_row = delivery_df[
+                        delivery_df["selection_label"] == selected_label
+                    ].iloc[0]
+
                     old_date_str = target_row["date"]
                     selected_item_name = target_row["Item_Name"]
                     old_box_val = float(target_row["Delivered_Boxes"])
-                    old_date_obj = datetime.strptime(old_date_str, "%Y-%m-%d").date()
 
-                    # --- VALIDATION: Find Planned Boxes for this item ---
-                    planned_record = next((row for row in dc_row_data if row["Item"] == selected_item_name), None)
-                    planned_boxes = float(planned_record["Boxes"]) if planned_record else 0.0
+                    old_date_obj = datetime.strptime(
+                        old_date_str,
+                        "%Y-%m-%d"
+                    ).date()
+
+                    planned_record = next(
+                        (
+                            row
+                            for row in dc_row_data
+                            if row["Item"] == selected_item_name
+                        ),
+                        None
+                    )
+
+                    planned_boxes = (
+                        float(planned_record["Boxes"])
+                        if planned_record
+                        else 0.0
+                    )
 
                     col1, col2 = st.columns(2)
+
                     with col1:
-                        new_box_val = st.number_input("Update Boxes", min_value=0.0, value=old_box_val)
-                        
-                        # Show Warning if delivered > planned
+                        new_box_val = st.number_input(
+                            "Update Boxes",
+                            min_value=0.0,
+                            value=old_box_val
+                        )
+
                         if new_box_val > planned_boxes:
-                            st.warning(f"⚠️ Warning: Delivered boxes ({new_box_val}) exceed Planned boxes ({planned_boxes})")
+                            st.warning(
+                                f"⚠️ Warning: Delivered boxes "
+                                f"({new_box_val}) exceed "
+                                f"Planned boxes ({planned_boxes})"
+                            )
 
                     with col2:
                         change_date = st.checkbox("Change Date?")
-                        new_date = st.date_input("New Date", value=old_date_obj) if change_date else None
+
+                        new_date = (
+                            st.date_input(
+                                "New Date",
+                                value=old_date_obj
+                            )
+                            if change_date
+                            else None
+                        )
 
                     col_upd, col_del = st.columns([4, 1])
+
                     with col_upd:
                         if st.button("💾 Update Record"):
-                            # Block the update if it exceeds planned total
+
                             if new_box_val > planned_boxes:
-                                st.error(f"❌ Cannot update: Delivered quantity ({new_box_val}) cannot exceed Planned quantity ({planned_boxes}).")
+                                st.error(
+                                    f"❌ Cannot update: Delivered quantity "
+                                    f"({new_box_val}) cannot exceed "
+                                    f"Planned quantity ({planned_boxes})."
+                                )
                             else:
                                 try:
-                                    update_dc_delivery_entry(update_dc, old_date_obj, selected_item_name, new_box_val, new_date)
+                                    update_dc_delivery_entry(
+                                        update_dc,
+                                        old_date_obj,
+                                        selected_item_name,
+                                        new_box_val,
+                                        new_date
+                                    )
+
                                     st.success("✅ Delivery updated.")
                                     st.rerun()
+
                                 except Exception as e:
                                     st.error(f"❌ Update failed: {e}")
 
                     with col_del:
                         if st.button("🗑️ Delete Record"):
-                            confirm_delete_delivery_dialog(update_dc, old_date_obj, selected_item_name)
+                            confirm_delete_delivery_dialog(
+                                update_dc,
+                                old_date_obj,
+                                selected_item_name
+                            )
+
                 else:
                     st.info("No delivery records found.")
+
         else:
             st.warning("❌ No DC found.")
 # ============== TAB 4: Create Invoice Details ==============
@@ -648,7 +765,7 @@ with tab7:
                     canvas.setFont(base_font, 12)
                     canvas.drawCentredString(width / 2.0, y_top - 40, "SHAHANAZ BANU")
                     canvas.drawCentredString(width / 2.0, y_top - 55,
-                                             "No : 39/16/2, Nayar vardha Pillai Street, Royapettah, Chennai - 600014")
+                                             "No : 12/21, Mezzanine Floor, RamaSamy Street, Periamet, Chennai - 600003")
 
                     # Bill No & Date in bold
                     bill_date_y = y_top - 75
